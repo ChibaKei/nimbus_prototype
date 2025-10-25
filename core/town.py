@@ -12,6 +12,7 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException,
     StaleElementReferenceException,
     ElementNotInteractableException,
+    NoAlertPresentException,
 )
 from utils.selenium_utils import click_element_by_script, handle_alert
 from .base_login import create_chrome_driver, create_webdriver_wait
@@ -80,3 +81,70 @@ def town_login(username: str = "", password: str = "", headless: bool = True) ->
         driver.quit()
         raise
 
+
+def town_pickup(int=None, get_count=None):
+
+    def get_cast_count(driver):
+        
+        try:
+            count = 0
+            gal_list = driver.find_element_by_xpath('//*[@id="gals"]')
+            count = len(gal_list.find_elements_by_tag_name('li'))
+            finished_gal_count = len(gal_list.find_elements_by_class_name("disabled"))
+
+            count -= finished_gal_count
+
+            #print("count:",count)
+            driver.quit()
+            return count
+        finally:
+            driver.quit()
+    
+
+    driver = town_login()
+    time.sleep(1)
+    driver.get('https://admin.dto.jp/shop-admin/34627/standby?order=2')
+
+    if get_count:# カウント取得
+        count = get_cast_count(driver)
+        driver.quit()
+        return count
+    time.sleep(1)            
+
+    try:
+        driver.find_element(By.LINK_TEXT, "待機情報").click()
+        driver.find_element(By.XPATH, f'//*[@id="gals"]/li[{int}]/div/div[4]/a[2]').click() #待機中ボタン
+        try:
+            xpath = '//*[@id="one_left_flag"]'
+            chkbox = driver.find_element(By.XPATH, xpath)
+            if not chkbox.is_selected():# 非選択の場合はJavaScriptでクリックする
+                driver.execute_script("arguments[0].click();", chkbox)
+        except:
+            pass
+        driver.find_element_by_xpath(f'//*[@id="gals"]/li[{int}]/div/div[4]/div/div/div/div/a[1]').click() #待機中モーダル
+        time.sleep(2)
+    except NoAlertPresentException:
+        pass
+    except:
+        driver.refresh()
+        time.sleep(5)
+        pass
+    else:
+        break
+
+    for l in range(5):
+        try:
+            driver.find_element_by_xpath(f'//*[@id="gals"]/li[{int}]/div/div[4]/a[3]').click() #pickupボタン
+            alert = driver.switch_to_alert() #pickupアラート
+            alert.accept()
+        except NoAlertPresentException:
+            pass
+            break
+        except:
+            driver.refresh()
+            time.sleep(5)
+        else:
+            break
+        
+    time.sleep(1)
+    driver.quit()
