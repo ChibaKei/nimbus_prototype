@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+*.db
+
+# Images
+blog_images/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+venv/
+env/
+
+# Logs
+*.log 
+
+# macOS
+.DS_Store 
+
+# Data directories
+town_news/
+diary_img_draft/
+vanilla_blog/ 

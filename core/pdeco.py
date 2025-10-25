@@ -1,12 +1,16 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.alert import Alert
-from base_login import create_chrome_driver, create_webdriver_wait
+from .base_login import create_chrome_driver, create_webdriver_wait
 import time
 import sqlite3
-import nimbus_db_manager
+from database import cast_db_manager, heaven_schedule_db_manager
 import random
 
 
@@ -71,7 +75,7 @@ def pdeco_easy_login(cast_name: str, headless: bool = True) -> str:
     driver = None
     try:
         # キャスト情報を取得
-        cast_info = nimbus_db_manager.get_cast_info(cast_name)
+        cast_info = cast_db_manager.get_cast_info(cast_name)
         
         if cast_info and cast_info[5]:  # pdeco_urlが存在する場合
             driver = create_chrome_driver(headless, incognito=True)

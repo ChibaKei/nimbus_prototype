@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
@@ -9,19 +13,21 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     ElementNotInteractableException,
 )
-from selenium_utils import click_element_by_script, handle_alert
-from base_login import create_chrome_driver, create_webdriver_wait
+from utils.selenium_utils import click_element_by_script, handle_alert
+from .base_login import create_chrome_driver, create_webdriver_wait
 import os
 import time
 import random
-import utilities
-import sys
+from utils import utilities
 import io
 
 # Windows環境での文字化け対策
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+
+"heaven_kg_auto(),heaven_opening(),profile_copy(name),pdeco_create(name)未実装"
 
 
 def heaven_login(username: str = "", password: str = "", headless: bool = True) -> webdriver.Chrome:
@@ -86,7 +92,7 @@ def heaven_login(username: str = "", password: str = "", headless: bool = True) 
         raise
 
 
-def heaven_update(username: str = "", password: str = "", headless: bool = True):
+def heaven_store_update(username: str = "", password: str = "", headless: bool = True):
     """CityHeaven のお店ページ更新日時を更新する。
     
     Args:
@@ -100,7 +106,7 @@ def heaven_update(username: str = "", password: str = "", headless: bool = True)
         wait = WebDriverWait(driver, 10)
         
         # ランダムな待機時間（1-5秒）
-        delay = random.randint(1, 5)
+        delay = random.randint(1, 3)
         
         # お店ページ更新ボタンをクリック
         click_element_by_script(driver, wait, "#cntButton > div:nth-child(1)", delay)
@@ -121,7 +127,7 @@ def heaven_update(username: str = "", password: str = "", headless: bool = True)
             driver.quit()
 
 
-def get_casts_info(username: str = "2510021932", password: str = "i7Qt5Jnj", 
+def get_pdeco_info(username: str = "2510021932", password: str = "i7Qt5Jnj", 
                   headless: bool = False, max_casts: int = None):
     """キャスト情報を取得する関数
     
@@ -226,6 +232,7 @@ def get_casts_info(username: str = "2510021932", password: str = "i7Qt5Jnj",
         if driver:
             driver.quit()
 
+
 def get_heaven_schedule(username: str = "2510021932", password: str = "i7Qt5Jnj", headless: bool = True):
     
     driver = heaven_login(username, password, headless)
@@ -255,22 +262,13 @@ def get_heaven_schedule(username: str = "2510021932", password: str = "i7Qt5Jnj"
             except:
                 schedule_data.append(["", ""])  # エラーの場合は空のスケジュール
         schedule_data_list.append([cast_name, schedule_data])
-        # DBに保存
-        """if blog_db.add_heaven_schedule(gal_name, schedule_data):
-            success_count += 1
-            print(f"✓ {gal_name}のスケジュールを保存しました")
-        else:
-            print(f"✗ {gal_name}のスケジュール保存に失敗しました")"""
                 
-    
     driver.quit()
     
     return {
         'success': True,
         'schedule_data_list': schedule_data_list,
-        'total_casts': len(schedule_data_list),
-        'updated_casts': [],  # この関数では更新処理を行わない
-        'updated_count': 0
+        'total_casts': len(schedule_data_list)
     }
     
 
