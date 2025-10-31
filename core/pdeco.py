@@ -87,13 +87,17 @@ def pdeco_easy_login(cast_name: str, headless: bool = True) -> str:
             try:
                 driver.get(login_url)
                 driver.execute_script("arguments[0].click();", driver.find_element(By.CLASS_NAME, "loginBtn"))
-                time.sleep(10)
+                time.sleep(1)
                 return driver
             except Exception as driver_error:
                 print(f"ページアクセスエラー: {driver_error}")
                 if driver:
-                    driver.quit()
-                raise driver_error
+                    try:
+                        driver.quit()
+                    except:
+                        pass
+                # 例外をraiseせず、エラーメッセージを返す
+                return f"{cast_name}: ページアクセスエラー - {str(driver_error)}"
         else:
             return f"{cast_name}: キャスト情報またはURLが見つかりません"
     except Exception as e:
@@ -156,6 +160,7 @@ def heaven_kitene(cast_name: str, max_retries: int = 1):
         try:
             driver = pdeco_easy_login(cast_name, False)
             if isinstance(driver, str):
+                # エラーメッセージが返された場合
                 return driver
             # ページの読み込み完了を待つ
             wait = WebDriverWait(driver, 5)
@@ -255,8 +260,12 @@ def heaven_kitene(cast_name: str, max_retries: int = 1):
             else:
                 return f"エラー: {e}"
         finally:
-            if driver:
-                driver.quit()
+            # driverがWebDriverオブジェクトの場合のみquitを呼び出す
+            if driver and not isinstance(driver, str) and hasattr(driver, 'quit'):
+                try:
+                    driver.quit()
+                except Exception as e:
+                    print(f"ドライバー終了エラー: {e}")
     
     return "最大リトライ回数に達しました"
     

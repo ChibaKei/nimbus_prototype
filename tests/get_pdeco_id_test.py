@@ -6,7 +6,7 @@ from core import heaven
 from database import cast_db_manager
 
 # 最大7キャストまで処理
-result = heaven.get_pdeco_info(max_casts=20)
+result = heaven.get_pdeco_info()
 print(f"取得結果: {result}")
 
 # データベースに保存

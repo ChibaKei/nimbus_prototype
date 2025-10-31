@@ -135,7 +135,7 @@ def get_pdeco_info(username: str = "2510021932", password: str = "i7Qt5Jnj",
     """
     driver = None
     try:
-        driver = heaven_login(username, password, headless)
+        driver = heaven_login(username, password, headless=True)
         time.sleep(2)
         
         # キャスト一覧ページにアクセス
