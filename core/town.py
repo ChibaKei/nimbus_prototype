@@ -20,13 +20,6 @@ import os
 import time
 import random
 from utils import utilities
-import io
-
-# Windows環境での文字化け対策
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
 
 
 def town_login(username: str = "", password: str = "", headless: bool = True) -> webdriver.Chrome:
@@ -65,7 +58,7 @@ def town_login(username: str = "", password: str = "", headless: bool = True) ->
         login_button.click()
         # ログイン後のページ遷移を待機
         wait.until(lambda d: d.current_url != login_url)
-        time.sleep(10)
+        time.sleep(0.3)
         return driver
 
     except (
@@ -82,69 +75,83 @@ def town_login(username: str = "", password: str = "", headless: bool = True) ->
         raise
 
 
-def town_pickup(int=None, get_count=None):
+def town_cast_pickup(cast_index: int | None = None, get_count: bool | None = None) -> int | None:
+    """デリヘルタウンのキャストをピックアップする。
 
-    def get_cast_count(driver):
-        
+    Args:
+        cast_index: ピックアップするキャストのインデックス（1始まり）。Noneの場合はget_count=Trueである必要がある。
+        get_count: Trueの場合、利用可能なキャスト数を返す。FalseまたはNoneの場合はピックアップ処理を実行。
+
+    Returns:
+        get_count=Trueの場合、利用可能なキャスト数（int）。それ以外の場合、None。
+
+    Raises:
+        ValueError: cast_indexとget_countが両方Noneの場合。
+        NoAlertPresentException: アラートが表示されない場合。
+        NoSuchElementException: 必要な要素が見つからない場合。
+    """
+    if cast_index is None and not get_count:
+        raise ValueError("cast_indexまたはget_countを指定してください")
+
+    def get_cast_count(driver: webdriver.Chrome) -> int:
+        """利用可能なキャスト数を取得する。"""
         try:
-            count = 0
-            gal_list = driver.find_element_by_xpath('//*[@id="gals"]')
-            count = len(gal_list.find_elements_by_tag_name('li'))
-            finished_gal_count = len(gal_list.find_elements_by_class_name("disabled"))
-
-            count -= finished_gal_count
-
-            #print("count:",count)
-            driver.quit()
-            return count
-        finally:
-            driver.quit()
+            gal_list = driver.find_element(By.XPATH, '//*[@id="gals"]')
+            total_count = len(gal_list.find_elements(By.TAG_NAME, 'li'))
+            finished_gal_count = len(gal_list.find_elements(By.CLASS_NAME, "disabled"))
+            return total_count - finished_gal_count
+        except NoSuchElementException:
+            return 0
     
-
-    driver = town_login()
-    time.sleep(1)
-    driver.get('https://admin.dto.jp/shop-admin/34627/standby?order=2')
-
-    if get_count:# カウント取得
-        count = get_cast_count(driver)
-        driver.quit()
-        return count
-    time.sleep(1)            
-
+    # 認証情報は環境変数またはデフォルト値を使用
+    username = os.environ.get("TOWN_USERNAME", "dieselchiba@central-agent.co.jp")
+    password = os.environ.get("TOWN_PASSWORD", "dieselchiba")
+    standby_url = 'https://admin.dto.jp/shop-admin/34627/standby?order=2'
+    
+    driver = None
     try:
-        driver.find_element(By.LINK_TEXT, "待機情報").click()
-        driver.find_element(By.XPATH, f'//*[@id="gals"]/li[{int}]/div/div[4]/a[2]').click() #待機中ボタン
-        try:
-            xpath = '//*[@id="one_left_flag"]'
-            chkbox = driver.find_element(By.XPATH, xpath)
-            if not chkbox.is_selected():# 非選択の場合はJavaScriptでクリックする
-                driver.execute_script("arguments[0].click();", chkbox)
-        except:
-            pass
-        driver.find_element_by_xpath(f'//*[@id="gals"]/li[{int}]/div/div[4]/div/div/div/div/a[1]').click() #待機中モーダル
-        time.sleep(2)
-    except NoAlertPresentException:
-        pass
-    except:
-        driver.refresh()
-        time.sleep(5)
-        pass
-    else:
-        break
+        driver = town_login(username, password, headless=False)
+        time.sleep(0.3)
+        driver.get(standby_url)
 
-    for l in range(5):
+        if get_count:
+            count = get_cast_count(driver)
+            return count
+        
+        if cast_index is None:
+            raise ValueError("cast_indexを指定してください")
+            
+        cast_box = driver.find_element(By.XPATH, f'//*[@id="gals"]/li[{cast_index}]/div/div[4]')
+        # 待機中ボタンとチェックボックスの処理
         try:
-            driver.find_element_by_xpath(f'//*[@id="gals"]/li[{int}]/div/div[4]/a[3]').click() #pickupボタン
-            alert = driver.switch_to_alert() #pickupアラート
+            cast_box.find_element(By.XPATH, 'a[2]').click()  # 待機中ボタン
+            chkbox = driver.find_element(By.XPATH, '//*[@id="one_left_flag"]')
+            if not chkbox.is_selected():  # 非選択の場合はJavaScriptでクリックする
+                driver.execute_script("arguments[0].click();", chkbox)
+            cast_box.find_element(By.XPATH, 'div/div/div/div/a[1]').click()  # 待機中モーダル
+            time.sleep(0.3)
+        except (
+            NoSuchElementException,
+            ElementClickInterceptedException,
+            ElementNotInteractableException,
+            StaleElementReferenceException,
+        ):
+            pass # 待機中ボタンが存在しない、またはクリックできない場合はスキップ
+
+        # pickupボタンをクリック
+        cast_box.find_element(By.XPATH, 'a[3]').click()  # pickupボタン
+        
+        # アラートを処理（非推奨のswitch_to_alert()を修正）
+        try:
+            alert = driver.switch_to.alert  # pickupアラート
             alert.accept()
         except NoAlertPresentException:
+            # アラートが表示されない場合はスキップ
             pass
-            break
-        except:
-            driver.refresh()
-            time.sleep(5)
-        else:
-            break
         
-    time.sleep(1)
-    driver.quit()
+        time.sleep(0.3)
+        return None
+        
+    finally:
+        if driver:
+            driver.quit()

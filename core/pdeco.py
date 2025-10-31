@@ -73,10 +73,11 @@ def pdeco_login(cast_name: str = "", id: str = "", password: str = "", headless:
 def pdeco_easy_login(cast_name: str, headless: bool = True) -> str:
     conn = None
     driver = None
+    print(cast_name)
     try:
         # キャスト情報を取得
         cast_info = cast_db_manager.get_cast_info(cast_name)
-        
+        print(cast_info)
         if cast_info and cast_info[5]:  # pdeco_urlが存在する場合
             driver = create_chrome_driver(headless, incognito=True)
             wait = create_webdriver_wait(driver, 10)
@@ -107,14 +108,29 @@ def pdeco_easy_login(cast_name: str, headless: bool = True) -> str:
 
 def get_pdeco_easy_login(cast_name: str = "", id: str = "", password: str = "", headless: bool = True) -> webdriver.Chrome:
     driver = pdeco_login(cast_name, id, password, headless)
-    if isinstance(driver, str) and "認証が必要です" in driver:
-        easy_login_url = "authentication_required"
+    
+    # driverが文字列の場合（エラーまたは認証が必要な場合）
+    if isinstance(driver, str):
+        if "認証が必要です" in driver:
+            easy_login_url = "authentication_required"
+        else:
+            # その他のエラーの場合
+            print(f"ログインエラー: {driver}")
+            return "failed"
     else:
-        driver.execute_script("arguments[0].click();", driver.find_element(By.XPATH, '//*[@id="menuGrobal"]/a[1]'))
-        time.sleep(2)
-        driver.execute_script("arguments[0].click();", driver.find_element(By.CLASS_NAME, 'btnClose'))
-        driver.execute_script("arguments[0].click();", driver.find_element(By.XPATH, '//*[@id="etceteraList"]/form/ul/li[1]/a'))
-        easy_login_url = driver.current_url
+        # driverが正常に取得できた場合
+        try:
+            driver.execute_script("arguments[0].click();", driver.find_element(By.XPATH, '//*[@id="menuGrobal"]/a[1]'))
+            time.sleep(2)
+            driver.execute_script("arguments[0].click();", driver.find_element(By.CLASS_NAME, 'btnClose'))
+            driver.execute_script("arguments[0].click();", driver.find_element(By.XPATH, '//*[@id="etceteraList"]/form/ul/li[1]/a'))
+            easy_login_url = driver.current_url
+            driver.quit()
+        except Exception as e:
+            print(f"URL取得エラー: {e}")
+            if driver:
+                driver.quit()
+            return "failed"
     
     conn = None
     try:
@@ -122,8 +138,6 @@ def get_pdeco_easy_login(cast_name: str = "", id: str = "", password: str = "", 
         cursor = conn.cursor()
         cursor.execute('UPDATE cast_info SET pdeco_url = ? WHERE cast_name = ?', (easy_login_url, cast_name))
         conn.commit()
-        if conn:
-            conn.close()
         return "success"
     except Exception as e:
         if conn:
